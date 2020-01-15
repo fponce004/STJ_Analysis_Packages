@@ -190,6 +190,35 @@ TH1I *ihost;
 // Start functions
 
 /* **************************************************************************************************** */
+void clean(info* pointer){
+    /* **************************************************************************************************** */
+    pointer->current = 0;
+    pointer->last = 0;
+    pointer->cslice = 0;
+    pointer->endslice = 0;
+    pointer->indexvalue = 0;
+    pointer->numbin = 0;
+    pointer->channel = 0;
+    
+    for(int i = 0; i < N_Events; i++) {
+        pointer->id[i] = 0;
+        pointer->veto[i] = false;
+        pointer->high[i] = false;
+        pointer->recoil[i] = false;
+        pointer->bin[i] = 0;
+        pointer->tag[i] = 0;
+        pointer->time[i] = 0;
+    } // Zero out xia values arrays
+    for(int i = 0; i <= NUM_COLUMN; i++) pointer->thyme[i] = 0;
+    for(int i = 0; i < NUM_COLUMN; i++) for(int j = 0; j < tbin; j++) pointer->hist[i][j] = 0;
+    for(int i = 0; i< tbin; i++) pointer->xaxis[i] = 0;
+    for(int i = 0; i < NUM_PEAKS*NUM_COLUMN; i++) for(int j = 0; j < 8; j++) pointer->param[i][j] = 0;
+    for(int i = 0; i < NUM_COLUMN; i++) for(int j = 0; j < 7; j++) pointer->calib[i][j] = 0;
+    for(int i = 0; i < 9; i++) for(int j = 0; j < 5; j++) pointer->output[i][j] = 0;
+    for(int i = 0; i < 250; i++) for(int j = 0; j < 17; j++) pointer->fit[i][j] = 0;
+};
+
+/* **************************************************************************************************** */
 template <class type>
 void display(type* item, int start = 0, int end = 10){
     /* **************************************************************************************************** */
