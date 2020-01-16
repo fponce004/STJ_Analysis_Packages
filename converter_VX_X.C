@@ -102,16 +102,6 @@ char fpath[500] = "/Users/ponce10/Root_Folder/Data/Code_Testing/FILTER/";
 char fext[500] = ".bin";
 
 // These are the files for the bias vs responsivity test...
-char xfile[500] = "181027_111112-h_b14-p299b";
-char xfile00[500] = "01_Bias_100_b14-p226a";
-char xfile01[500] = "02_Bias_020_b14-p226a";
-char xfile02[500] = "03_Bias_040_b14-p226a";
-char xpath[500] = "/Applications/Data-Processed/Livermore/181026_No_Source_STJ_Test/";
-char xext[500] = ".bin";
-char *xfolder[20] = {xfile00, xfile01, xfile02};
-//*/
-
-// These are the files for the bias vs responsivity test...
 //char tfile[500] = "STJ_Run_Vs_Bias";
 char tfile[500] = "111112g_Be7_12p1A_XIA_p108d";
 char tfile00[500] = "111112d_U234_12p2A_p132b";
@@ -146,11 +136,12 @@ char *tfolder[20] = {tfile00, tfile01, tfile02, tfile03, tfile04, tfile05,
                      tfile12, tfile13, tfile14, tfile15, tfile16, tfile17};
 //*/
 
-// These are the files for the bias vs responsivity test...
-char cfile[500] = "01_Bias_100_b14-p226a";
+// These are the files for the bias vs responsivity test... these were CAEN files
+char cfile[500] = "181027_111112-h_b14-p299b";
 char cfile00[500] = "01_Bias_100_b14-p226a";
 char cfile01[500] = "02_Bias_020_b14-p226a";
 char cfile02[500] = "03_Bias_040_b14-p226a";
+//char cpath[500] = "/Applications/Data-Processed/Livermore/181026_No_Source_STJ_Test/";
 char cpath[500] = "/Users/ponce10/Root_Folder/Data/Code_Testing/Responsivity_Vs_Bias/";
 char cext[500] = ".bin";
 char *cfolder[20] = {cfile00, cfile01, cfile02};
@@ -210,8 +201,8 @@ void clean(info* pointer){
         pointer->time[i] = 0;
     } // Zero out xia values arrays
     for(int i = 0; i <= NUM_COLUMN; i++) pointer->thyme[i] = 0;
-    for(int i = 0; i < NUM_COLUMN; i++) for(int j = 0; j < tbin; j++) pointer->hist[i][j] = 0;
-    for(int i = 0; i< tbin; i++) pointer->xaxis[i] = 0;
+    for(int i = 0; i < NUM_COLUMN; i++) for(int j = 0; j < tBin; j++) pointer->hist[i][j] = 0;
+    for(int i = 0; i< tBin; i++) pointer->xaxis[i] = 0;
     for(int i = 0; i < NUM_PEAKS*NUM_COLUMN; i++) for(int j = 0; j < 8; j++) pointer->param[i][j] = 0;
     for(int i = 0; i < NUM_COLUMN; i++) for(int j = 0; j < 7; j++) pointer->calib[i][j] = 0;
     for(int i = 0; i < 9; i++) for(int j = 0; j < 5; j++) pointer->output[i][j] = 0;
@@ -5314,12 +5305,6 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
             sprintf(data[i]->path, "%s", tpath);
             sprintf(data[i]->name, "%s", file);
             sprintf(data[i]->ext, "%s", text);
-            /*/
-            sprintf(data[i]->filename, "%s%s%s", xpath, xfile, xext);
-            sprintf(data[i]->path, "%s", xpath);
-            sprintf(data[i]->name, "%s", xfile);
-            sprintf(data[i]->ext, "%s", xext);
-            /*/
         }
         xiaload(data[0]->filename, data, 1);
         double sigma_value = 40;
@@ -5609,8 +5594,8 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
     }// XIA Heat Map
     else if(type ==  6){
         char str[500];
-        char *path = xpath;
-        char *ext = xext;
+        char *path = cpath;
+        char *ext = cext;
         TH1D *hist[4];
         TH1D *anti[4];
         ofstream outfile;
