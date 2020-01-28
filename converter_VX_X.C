@@ -102,6 +102,16 @@ char fpath[500] = "/Users/ponce10/Root_Folder/Data/Code_Testing/FILTER/";
 char fext[500] = ".bin";
 
 // These are the files for the bias vs responsivity test...
+char xfile[500] = "181027_111112-h_b14-p299b";
+char xfile00[500] = "01_Bias_100_b14-p226a";
+char xfile01[500] = "02_Bias_020_b14-p226a";
+char xfile02[500] = "03_Bias_040_b14-p226a";
+char xpath[500] = "/Applications/Data-Processed/Livermore/181026_No_Source_STJ_Test/";
+char xext[500] = ".bin";
+char *xfolder[20] = {xfile00, xfile01, xfile02};
+//*/
+
+// These are the files for the bias vs responsivity test...
 //char tfile[500] = "STJ_Run_Vs_Bias";
 char tfile[500] = "111112g_Be7_12p1A_XIA_p108d";
 char tfile00[500] = "111112d_U234_12p2A_p132b";
@@ -136,12 +146,11 @@ char *tfolder[20] = {tfile00, tfile01, tfile02, tfile03, tfile04, tfile05,
                      tfile12, tfile13, tfile14, tfile15, tfile16, tfile17};
 //*/
 
-// These are the files for the bias vs responsivity test... these were CAEN files
-char cfile[500] = "181027_111112-h_b14-p299b";
+// These are the files for the bias vs responsivity test...
+char cfile[500] = "01_Bias_100_b14-p226a";
 char cfile00[500] = "01_Bias_100_b14-p226a";
 char cfile01[500] = "02_Bias_020_b14-p226a";
 char cfile02[500] = "03_Bias_040_b14-p226a";
-//char cpath[500] = "/Applications/Data-Processed/Livermore/181026_No_Source_STJ_Test/";
 char cpath[500] = "/Users/ponce10/Root_Folder/Data/Code_Testing/Responsivity_Vs_Bias/";
 char cext[500] = ".bin";
 char *cfolder[20] = {cfile00, cfile01, cfile02};
@@ -746,11 +755,14 @@ int hist_save(info *pointer, int histrow = tBin, int histcol = 0, bool verbose =
 }
 
 /* **************************************************************************************************** */
-int xia2ascii(char folder[500], char file[500], char ext[500], char chan[500]){
+int xia2ascii(char folder[500], char file[500], char ext[500]){
 /* **************************************************************************************************** */
     /*
      This function is intended to convert the XIA Binary file into an ascii file with the bin, time and
      tag information in three columns.
+     
+     20200128
+     Removed char chan[500] from function input as it was not used and compilation resulted in warning.
      */
     // Initialize Function Variables
     info *detector[N_detectors];
@@ -2699,6 +2711,9 @@ int calibration(info* pointer, int lal = 800, bool specialize = false, bool trou
      
      Currently, sigma is not being used and is commented out...
      
+     20200128
+     Added variable qvalue to hold the initial guess for the quadratic fit. For some reason having an
+     equation in the function would occasionally result in a large integar number. Likely due to function.
      
      */
     // Initialize Function Variables:
@@ -2714,6 +2729,7 @@ int calibration(info* pointer, int lal = 800, bool specialize = false, bool trou
     //float lstart = 70;
     double slope = 0;
     double offset = 0;
+    double qvalue = 0;
     double area[2*NUM_PEAKS];
     double energy[2*NUM_PEAKS];
     double cent[2*NUM_PEAKS];
@@ -2786,10 +2802,10 @@ int calibration(info* pointer, int lal = 800, bool specialize = false, bool trou
      Setup initial slope and off set guess in units of ch/# and ch originally, I have now updated it to
      give units of #/ch and # so no additional calculations are needed later.
      /*/
-    if(true || !domain){                                                // true, is here as a temporary thing when 'finalized' and not running individuals trouble shooting commands  this should not be needed...
+    if(true || !domain){
         slope = (energy[counter - 1] - energy[0])/(cent[counter - 1] - cent[0]);
         offset = energy[0] - cent[0]*slope;
-    }
+    }// true, is here as a temporary thing when 'finalized' and not running individuals trouble shooting commands this should not be needed...
     else{
         slope = pointer->calib[cur][1];
         offset = pointer->calib[cur][3];
@@ -2806,12 +2822,9 @@ int calibration(info* pointer, int lal = 800, bool specialize = false, bool trou
     if(trouble){
         printf("Returned a pshift value of %d and using a unit value of %f\n", pshift, unit);
     }
-    
     /*/
      The offset is actually one of two possible options as the offset will be between two points
     /*/
-    
-    
     for (int i = 0; i <  mainnum; i++) {
         if (!domain) energy[i] = unit*(energy[i] + pshift);
         pointer->param[i + cur*NUM_PEAKS][1] = energy[i];
@@ -2907,18 +2920,16 @@ int calibration(info* pointer, int lal = 800, bool specialize = false, bool trou
     if (!fitmodel && exit){
         printf("p1: %f\tp0: %f\n", out[1], out[0]);
         printf("Linear Test: Expected %f\t using %f\t get %f\n", pointer->param[cur*NUM_PEAKS][1], pointer->param[cur*NUM_PEAKS][2], pointer->param[cur*NUM_PEAKS][2]*out[1] + out[0]);
-        printf("p2 guess: %f\n", (pointer->param[cur*NUM_PEAKS][1] - pointer->param[cur*NUM_PEAKS][2]*out[1] - out[0])/(pointer->param[cur*NUM_PEAKS][2]*pointer->param[cur*NUM_PEAKS][2]));
+        
+        qvalue = (pointer->param[cur*NUM_PEAKS][1] - pointer->param[cur*NUM_PEAKS][2]*out[1] -
+                  out[0])/(pointer->param[cur*NUM_PEAKS][2]*pointer->param[cur*NUM_PEAKS][2]);
+        printf("p2 guess: %f\n", qvalue);
         delete fun;
         fun = new TF1("fun3", "pol2");
-        //if (pointer->cslice == 0) fun->SetParameters(pointer->calib[cur][3], pointer->calib[cur][1], 0.001); // Original Line 191024
-        if (pointer->cslice == 0) fun->SetParameters(pointer->calib[cur][3], pointer->calib[cur][1],
-                                                     (pointer->param[cur*NUM_PEAKS][1] - pointer->param[cur*NUM_PEAKS][2]*out[1]
-                                                      - out[0])/(pointer->param[cur*NUM_PEAKS][2]*pointer->param[cur*NUM_PEAKS][2]));
-        else fun->SetParameters(pointer->calib[cur - 1][3], pointer->calib[cur - 1][1], pointer->calib[cur - 1][5]);
-        //fun->FixParameter(0, 0); // Fixes offset to 0
-        //fun->SetParLimits(0, -2*pointer->calib[cur][3], 2*pointer->calib[cur][3]); // Non-zero offset
-        //fun->SetParLimits(1, 0.75*pointer->calib[cur][1], 1.25*pointer->calib[cur][1]);
-        //fun->SetParLimits(2, -1, 1);
+        if (pointer->cslice == 0) fun->SetParameters(pointer->calib[cur][3], pointer->calib[cur][1], qvalue);
+        else fun->SetParameters(pointer->calib[cur - 1][3],
+                                pointer->calib[cur - 1][1],
+                                pointer->calib[cur - 1][5]);
         linefit->Fit(fun, "Q");
         out = fun->GetParameters();
         outerr = fun->GetParErrors();
@@ -2930,6 +2941,7 @@ int calibration(info* pointer, int lal = 800, bool specialize = false, bool trou
         pointer->calib[cur][5] = out[2];                                // Quadratic Term
         pointer->calib[cur][6] = outerr[2];                             // Quadratic Uncertainty Term
         printf("p2: %f\tp1: %f\tp0: %f\n", out[2], out[1], out[0]);
+        printf("sigma_p2: %f\tsigma_p1: %f\tsigma_p0: %f\n", outerr[2], outerr[1], outerr[0]);
         printf("Quadratic Test: Expected %f\t using %f\t get %f\n", pointer->param[cur*NUM_PEAKS][1], pointer->param[cur*NUM_PEAKS][2], pointer->param[cur*NUM_PEAKS][2]*pointer->param[cur*NUM_PEAKS][2]*out[2] + pointer->param[cur*NUM_PEAKS][2]*out[1] + out[0]);
         exit = 1;
     }
@@ -5014,6 +5026,9 @@ void residual(info *pointer, bool domain = false){
      Residuals:         Fitted - Theory
      changed to =>      Theory - Fitted
      
+     20200128
+     Updated quadratic residual calculation to use offset term, before offset was set to 0.
+     
     /*/
     // Initialize Function Variables
     char str[500];
@@ -5057,7 +5072,7 @@ void residual(info *pointer, bool domain = false){
             errfit = pointer->param[NUM_PEAKS*pointer->cslice + i][3];
             outfile << pointer->cslice << "\t" << energy << "\t";
             if (fitmodel) outfile << energy - (domain ? fit : slope*fit + offset) << "\t"; // linear
-            else outfile << energy - (domain ? fit : slope*fit + quad*fit*fit) << "\t"; // quadratic without offset
+            else outfile << energy - (domain ? fit : offset + slope*fit + quad*fit*fit) << "\t"; // quadratic
             outfile << (domain ? errfit : pow(fit*fit*errsl*errsl + erroff*erroff + errfit*errfit*slope*slope, 0.5));
             outfile << "\n";
         }
@@ -5305,6 +5320,12 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
             sprintf(data[i]->path, "%s", tpath);
             sprintf(data[i]->name, "%s", file);
             sprintf(data[i]->ext, "%s", text);
+            /*/
+            sprintf(data[i]->filename, "%s%s%s", xpath, xfile, xext);
+            sprintf(data[i]->path, "%s", xpath);
+            sprintf(data[i]->name, "%s", xfile);
+            sprintf(data[i]->ext, "%s", xext);
+            /*/
         }
         xiaload(data[0]->filename, data, 1);
         double sigma_value = 40;
@@ -5594,8 +5615,8 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
     }// XIA Heat Map
     else if(type ==  6){
         char str[500];
-        char *path = cpath;
-        char *ext = cext;
+        char *path = xpath;
+        char *ext = xext;
         TH1D *hist[4];
         TH1D *anti[4];
         ofstream outfile;
@@ -6268,6 +6289,7 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
             file_load(data, 5);
             //This change was needed because of changes in calibration that looks back at older calibration calculations to calculate the next term
             data->cslice = 0; //TMath::Abs(sig) - 1;
+            //clean(data);
             while (data->cslice < TMath::Abs(sig)){
                 calibration(data, lal, false, trouble);
                 data->cslice++;
@@ -6320,6 +6342,7 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
         // End
         
         // General data object setup
+        clean(data);
         data->current = 0;
         data->last = 0;
         data->endslice = 0;
@@ -7201,7 +7224,6 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
         
         // Clear calibration offset
         if (sansoff) for (int i = 0; i < data->last; i++) data->calib[i][3] = 0;
-        
         
         // Run revised energy to transform partition basis into energy basis...
         printf("Start converting to Number of bins: %d\n", numbin);
