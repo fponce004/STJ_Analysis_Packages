@@ -3199,7 +3199,6 @@ int peakfinder(info* pointer,  bool *override, double *sig, double *amp, bool us
                    pointer->param[pointer->cslice*NUM_PEAKS + i][4],
                    pointer->param[pointer->cslice*NUM_PEAKS + i][6]);
         }
-        
     }
 
     /*/
@@ -3208,7 +3207,8 @@ int peakfinder(info* pointer,  bool *override, double *sig, double *amp, bool us
      /*/
     //autorun = false;
     attempt = 0;
-    while (true) {
+// This used to just be defaulted to true
+    while (3<= num) {
         if((autorun && ngaussfit(pointer,  num, ranleft, ranright, 0, 0, *override, useenergy)) || attempt == -100) {
             exit = 1;
             for(int i = 0; i < num; i++) if(round_decimal(pointer->param[pointer->cslice*NUM_PEAKS + i][4], 3) == 100) exit = 0;
@@ -3908,7 +3908,12 @@ int peakfinder(info* pointer,  bool *override, double *sig, double *amp, bool us
             std::cout << pointer->param[NUM_PEAKS*pointer->cslice + i][6] << "\n";
         }
     }
-    exit = calibration(pointer, lal, false, trouble); // Run initial calibration on peaks for use in next partition
+    if(3<=num) exit = calibration(pointer, lal, false, trouble); // Run initial calibration on peaks for use in next partition
+    else if (pointer->cslice != 0){
+        pointer->calib[pointer->cslice][0] = pointer->cslice;
+        for(int i = 1; i < 7; i++) pointer->calib[pointer->cslice][i] = pointer->calib[pointer->cslice - 1][i];
+        exit = 0;
+    }
     return exit;
 }
 
@@ -5877,6 +5882,9 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
         
     } // Trouble Shooting:              To save XIA to ascii
     else if(type == 10){
+        std::cout << "Initial Values:\nPeak\tSigma\tArea\n";
+        printf("Running Test:");
+        for(int i = 0; i < sig; i++) printf("%d ", i);
     } // Trouble Shooting:              Empty
     else if(type == 11){
         /*
