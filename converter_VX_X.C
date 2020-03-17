@@ -37,6 +37,7 @@
 #include <TMinuit.h>
 #include <TMath.h>
 #include <TGraphErrors.h>
+#include <TGraph.h>
 #include <TSpectrum.h>
 #include <TCanvas.h>
 #include <TVector.h>
@@ -113,9 +114,9 @@ char *xfolder[20] = {xfile00, xfile01, xfile02};
 
 // These are the files for the bias vs responsivity test...
 //char tfile[500] = "STJ_Run_Vs_Bias";
-char tfile[500] = "111112g_Be7_12p1A_XIA_p108d";
-char tfile00[500] = "111112d_U234_12p2A_p132b";
-char tfile01[500] = "111112d_U234_12p1A_p133c";
+char tfile[500] = "111112d_U234_13.1A_p155b";
+char tfile00[500] = "111112d_U234_13.5A_p153c";
+char tfile01[500] = "111112d_U234_13.1A_p154c";
 char tfile02[500] = "111112d_U234_12p2A_p134e";
 char tfile03[500] = "111112g_Be7_12p1A_XIA_p112b";
 char tfile04[500] = "111112g_Be7_12p1A_XIA_p112d";
@@ -139,7 +140,7 @@ char tfile17[500] = "";
 //char tpath[500] = "/Applications/Data-Processed/Livermore/191017/";
 //char tpath[500] = "/Applications/Data-Processed/Livermore/191206/";
 //char tpath[500] = "/Applications/Data-Processed/Livermore/Test/";
-char tpath[500] = "/Applications/Data-Processed/Livermore/Ortec/";
+char tpath[500] = "/Applications/Data-Processed/Livermore/200301/";
 char text[500] = ".bin";
 char *tfolder[20] = {tfile00, tfile01, tfile02, tfile03, tfile04, tfile05,
                      tfile06, tfile07, tfile08, tfile09, tfile10, tfile11,
@@ -2397,6 +2398,7 @@ int ngaussfit(info* pointer,  int num = 0, double ranleft = 0, double ranright =
     /*
      This function will perform an N-Gaussian fit to the data over the selected range and given
      variable parameters.
+     num        =>  This is the number of gaussian peaks to be fitted.
      ranleft    =>  This is the lower bound of the fitting range.
      ranright   =>  This is the upper bound of the fitting range.
      minsep     =>  This is the minimum separation for two consecutive peaks. (In Channels)
@@ -2410,7 +2412,7 @@ int ngaussfit(info* pointer,  int num = 0, double ranleft = 0, double ranright =
     int exit = 1;
     int order[NUM_PEAKS];
     int counter = 0;
-    bool trouble = false; // Used to activate trouble shooting features...
+    bool trouble = true; // Used to activate trouble shooting features...
     float perror = 0.5;
     double avgdiff = 0;
     double comp = 0;
@@ -2472,16 +2474,6 @@ int ngaussfit(info* pointer,  int num = 0, double ranleft = 0, double ranright =
     //hist->Sumw2(kFALSE);
     //hist->Sumw2();
     
-    if (trouble){
-        printf("Peak\tCentroid\tSigma\tArea\n");
-        for (int i = 0; i < num; i++){
-            std::cout << pointer->cslice*NUM_PEAKS + i << "\t";
-            std::cout << pointer->param[pointer->cslice*NUM_PEAKS + i][2] << "\t";
-            std::cout << pointer->param[pointer->cslice*NUM_PEAKS + i][4] << "\t";
-            std::cout << pointer->param[pointer->cslice*NUM_PEAKS + i][6] << "\n";
-        }
-    }
-    
     // Set initial fit parameters and fit limits
     fun = new TF1("fun",func_00, ranleft, ranright, 3*num + 1);
     fun->FixParameter(0, num);
@@ -2510,9 +2502,7 @@ int ngaussfit(info* pointer,  int num = 0, double ranleft = 0, double ranright =
      did not converge on the limits
     /*/
     for (int i = 0; i < NUM_PEAKS; i++) order[i] = centroid[i] = sigma[i] = area[i] = 0;
-    for (int i = 0; i < num; i++) for (int j = i + 1; j < num; j++) {
-        fitparam[3*i + 2] <= fitparam[3*j + 2] ? order[j]++ : order[i]++;
-    }
+    for (int i = 0; i < num; i++) for (int j = i + 1; j < num; j++) fitparam[3*i + 2] <= fitparam[3*j + 2] ? order[j]++ : order[i]++;
     // Check centroid values...
     for (int i = 0; i < num; i++) centroid[order[i]] = fitparam[3*i + 2];
     for (int i = 0; i < num; i++) {
@@ -2602,7 +2592,7 @@ int ngaussfit(info* pointer,  int num = 0, double ranleft = 0, double ranright =
             exit = 0;
         }//*/
     }
-    
+
     if (trouble){
         printf("Slot location: %d\n", NUM_PEAKS*pointer->cslice);
         printf("Peak\tCentroid\tSigma\tArea\n");
@@ -2697,6 +2687,113 @@ int ngaussfit(info* pointer,  int num = 0, double ranleft = 0, double ranright =
 }
 
 /* **************************************************************************************************** */
+int singlegaussfit(info* pointer, double ranleft = 0, double ranright = 0){
+/* **************************************************************************************************** */
+    /*
+     This function will perform an N-Gaussian fit to the data over the selected range and given
+     variable parameters.
+     ranleft    =>  This is the lower bound of the fitting range.
+     ranright   =>  This is the upper bound of the fitting range.
+     minsep     =>  This is the minimum separation for two consecutive peaks. (In Channels)
+     maxsep     =>  This is the maximum separation for two consecutive peaks. (In Channels)
+    */
+    
+    // Initalize Function Variables
+    TSpectrum *peak_off = new TSpectrum(NUM_PEAKS);
+    TH1D *hist;
+    TF1 *fun;
+    int exit = 1;
+    int counter = 0;
+    int num = 1;            // Number of peaks to fit
+    bool trouble = true; // Used to activate trouble shooting features...
+    float perror = 0.5;
+    double check = 0;
+    double pcent = 0;
+    double psigma = 0;
+    double parea = 0;
+    double avgsig = 0;
+    double *fitparam;
+    const double *fiterror;
+    // End
+    
+    // Prints initial fit parameters
+    if (trouble) {
+        printf("Starting input N-Gaussian parameters\tCurrent slice: %d\n", pointer->cslice);
+        printf("Range is (%.2f, %.2f)\n", ranleft, ranright);
+        printf("Sigma limits: 0.1 to %d\n", 100);
+        printf("Initial values:\nPeak\tCentroid\tSigma\tArea\n");
+        printf("%d\t%.2f\t%.2f\t%.2f\n", 0, pointer->param[pointer->cslice*NUM_PEAKS][2],
+               pointer->param[pointer->cslice*NUM_PEAKS][4],
+               pointer->param[pointer->cslice*NUM_PEAKS][6]);
+        }
+    
+    /*
+        Copy over histogram slice data and setup N-Gaussian function with parameters:
+                {fit_number, energy, peak, dpeak, sigma, dsigma, area, darea}
+        Note that for TF1 the optional entries are:
+                "R" : use the set function range
+                "Q" : Minimal printing
+                "O" : Do not plot
+    */
+    hist = pointer->histogram[pointer->cslice]; // Point to the histogram being fitted...
+//    hist->Sumw2(kFALSE);
+//    hist->Sumw2();
+    
+    // Set initial fit parameters and fit limits
+    fun = new TF1("fun",func_00, ranleft, ranright, 3*num + 1);
+    fun->FixParameter(0, num);
+    pcent = pointer->param[pointer->cslice*NUM_PEAKS][2];               // Centroid
+    psigma = pointer->param[pointer->cslice*NUM_PEAKS][4];              // Sigma
+    fun->SetParameter(1, pointer->param[pointer->cslice*NUM_PEAKS][6]); // Set Area
+    fun->SetParLimits(1, 1, pow(10, 9));                                // Limit area value to positive
+    fun->SetParameter(2, pcent);                                        // Set centroid
+    fun->SetParLimits(2, 0.9*pcent, 1.1*pcent);                         // Limit centroid value
+    fun->SetParameter(3, psigma);                                       // Set sigma
+    fun->SetParLimits(3, 0.1, pow(10, 4));                              // Limit sigma value
+    hist->Fit(fun, "QRLEM");
+    fitparam = fun->GetParameters();
+    fiterror = fun->GetParErrors();
+    
+    /*/
+     Determine order of fitted peaks. Check for double counting or skipped peaks, if no
+     error copy over 'good' peaks ignore bad ones. First step is to sort the fitted peaks in
+     order of increasing centroid value. I am looking for peaks that are to closely spaced
+     or to far apart indicating a missing peak. For the sigma, I am checking that the fit
+     did not converge on the limits
+    /*/
+    
+    // Print the fitted parameters
+    if (trouble){
+        printf("Partition: %d\n", NUM_PEAKS*pointer->cslice);
+        printf("Centroid\tSigma\tArea\n");
+        printf("%.2f\t%.2f\t%.2f\n", fitparam[2], fitparam[3], fitparam[1]);
+    }
+    
+    pointer->param[NUM_PEAKS*pointer->cslice][0] = pointer->cslice;     // Slice number for fits
+    pointer->param[NUM_PEAKS*pointer->cslice][1] = 0;                   // Peak Order, this will eventually become energy
+    pointer->param[NUM_PEAKS*pointer->cslice][2] = fitparam[2];         // Copy Centroid value (Ch)
+    pointer->param[NUM_PEAKS*pointer->cslice][3] = fiterror[2];         // Copy Centroid uncertainty
+    pointer->param[NUM_PEAKS*pointer->cslice][4] = fitparam[3];         // Copy Sigma value (Ch)
+    pointer->param[NUM_PEAKS*pointer->cslice][5] = fiterror[3];         // Copy Sigma uncertainty
+    pointer->param[NUM_PEAKS*pointer->cslice][6] = fitparam[1];         // Copy Area value (Ch*Counts)
+    pointer->param[NUM_PEAKS*pointer->cslice][7] = fiterror[1];         // Copy Area uncertainty
+    
+    for (int i = num; i < NUM_PEAKS; i++) pointer->param[NUM_PEAKS*pointer->cslice + i][0] = -1;
+    if (trouble) {
+        printf("Exit input N-Gaussian parameters\tCurrent slice: %d\n", pointer->cslice);
+        printf("Range is (%.2f, %.2f)\n", ranleft, ranright);
+        printf("Sigma limits: 0.1 to %f\n", pow(10, 4));
+        printf("Initial values:\nPeak\tCentroid\tSigma\tArea\n");
+        for (int i = 0; i < num; i++) {
+            printf("%d\t%.2f\t%.2f\t%.2f\n", i, pointer->param[pointer->cslice*NUM_PEAKS + i][2],
+                   pointer->param[pointer->cslice*NUM_PEAKS + i][4],
+                   pointer->param[pointer->cslice*NUM_PEAKS + i][6]);
+        }
+    }
+    return exit;
+}
+
+/* **************************************************************************************************** */
 int calibration(info* pointer, int lal = 800, bool specialize = false, bool trouble = false,
                 float lstart = 63){
 /* **************************************************************************************************** */
@@ -2742,6 +2839,8 @@ int calibration(info* pointer, int lal = 800, bool specialize = false, bool trou
     TGraphErrors *linefit;
     TF1 *fun;
     // End
+    
+    out = out; // Get rid of warnings
     
     if (trouble){
         std::cout << "Starting calibration...\n";
@@ -3775,7 +3874,7 @@ int peakfinder(info* pointer,  bool *override, double *sig, double *amp, bool us
                 else break;
             }
             attempt = 5;
-        }  // Change Area
+        }   // Change Area
         else if (attempt == 11){
             std::cout << "Enter new lower bound as a negative and upper bound as positive: ";
             while (true) {
@@ -3790,7 +3889,7 @@ int peakfinder(info* pointer,  bool *override, double *sig, double *amp, bool us
             if (attempt <= 0 && -attempt < histupperlim) histlowerlim = -attempt;
             else if (histlowerlim < attempt) histupperlim = attempt;
             attempt = 5;
-        }  // Change histogram bounds
+        }   // Change histogram bounds
         else if (attempt == 12){
             std::cout << "\nWARNING YOU ARE ABOUT TO REMOVE A POINT FROM THE FIT!!!!!\n";
             std::cout << "Please enter the peak that you wish to remove from fitting (Enter -1 to abort): ";
@@ -3809,12 +3908,12 @@ int peakfinder(info* pointer,  bool *override, double *sig, double *amp, bool us
             }
             else std::cout << "\nNo peak was removed\n";
             attempt = 5;
-        }  // Remove point
+        }   // Remove point
         else if (attempt == 13){
             printf("Toogling auto from %s to %s\n", (autorun ? "true" : "false"), (!autorun ? "true" : "false"));
             autorun = !autorun;
             attempt = 5;
-        }  // Toggle auto
+        }   // Toggle auto
         else if (attempt == 14){
             for (int i = num - 1; i >= 0; i--) if (pointer->param[NUM_PEAKS*pointer->cslice + i][6] < lal) {
                 removept(pointer, i, NUM_PEAKS*pointer->cslice, NUM_PEAKS*(pointer->cslice + 1));
@@ -3830,7 +3929,7 @@ int peakfinder(info* pointer,  bool *override, double *sig, double *amp, bool us
             ranleft = (int)(pointer->param[pointer->cslice*NUM_PEAKS][2] - 1.2*comp);
             ranright = (int)(pointer->param[pointer->cslice*NUM_PEAKS + num - 1][2] + 1.2*comp);
             attempt = 5;
-        }  // Remove points w/ small area
+        }   // Remove points w/ small area
         else if (attempt == 15){
             std::cout << "Entering new point\n";
             std::cout << "Enter new centroid value: ";
@@ -3839,7 +3938,7 @@ int peakfinder(info* pointer,  bool *override, double *sig, double *amp, bool us
             pointer->param[NUM_PEAKS*pointer->cslice + num][6] = pointer->param[NUM_PEAKS*pointer->cslice + num - 1][6];
             num++;
             attempt = 5;
-        }  // Add point
+        }   // Add point
         else if (attempt == 16){
             std::cout << "Performing full reset...\n";
             num = 0;
@@ -3865,7 +3964,7 @@ int peakfinder(info* pointer,  bool *override, double *sig, double *amp, bool us
             ranleft = (int)(pointer->param[pointer->cslice*NUM_PEAKS][2] - 10);
             ranright = (int)(pointer->param[pointer->cslice*NUM_PEAKS + num - 1][2] + 10);
             attempt = 5;
-        }  // Full reset
+        }   // Full reset
         else if (attempt == 17){
             printf("Confirm that you wish to exit user edit mode and automate the rest... 0 is exit no change 1 is switch override on\n");
             while (true) {
@@ -3882,7 +3981,7 @@ int peakfinder(info* pointer,  bool *override, double *sig, double *amp, bool us
                 *override = autorun;
             }
             attempt = 5;
-        } // Set to forced auto
+        }   // Set to forced auto
         else if (attempt == 18){
             sprintf(str, "%s%s%s%d%s%d%s", "File: ", pointer->name, " STJ # ", pointer->channel, " Slice: ", pointer->cslice, " N-Gaussian");
             canvas = new TCanvas(str, str, 1000, 1000);
@@ -3892,7 +3991,7 @@ int peakfinder(info* pointer,  bool *override, double *sig, double *amp, bool us
             canvas->Update();
             hist->Draw("same");
             //gBenchmark->Show("test");
-        }// Plot data...
+        }   // Plot data...
         else if (attempt > -100) attempt++;
         else if (attempt < -100) attempt = 5;
     }
@@ -5477,20 +5576,25 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
         char *path = tpath;
         char *ext = text;
         bool singular = true;          // Use false for moving window average...
-        bool override = false;
-        double sigma_value = 5;
-        double area_value = 0.005;
-        int lal = 200;
-        int lcl = 100;
-        int ucl = 500;
         int loadtime = 30;               // In hours
         int parsetime = 2;              // In minutes
-        int numbin = int(216/0.2);
-        double lower = 4;
-        double upper = 220;
+        int ch = int(2*randomvalue);
+        int nbin = 100000;
+        int harray[nbin];
+        double numer = 0;
+        double denom = 1;
+        double area = 0;
+        double sigma = 7000;
+        double centroid = 0;
+        TCanvas *can1;
+        TCanvas *can2;
+        can1 = new TCanvas("can1", "Period Scatter", 500, 500);
+        can2 = new TCanvas("can2", "Period Histogram", 500, 500);
+        TGraph *g;
         info *data[N_detectors];
         // End
-        
+        printf("\n\n\nNOTICE NOTICE NOTICE\n\n\n");
+        printf("Using: %d", val1);
         for (int i = 0; i < N_detectors; i++) {
             data[i] = new info;
             data[i]->current = 0;
@@ -5504,87 +5608,52 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
         } // Load Data to buffer for processing
         xiaload(data[0]->filename, data, 0, loadtime); // Use Full Time Available
         marker(data, 10); // Mark all coincidence events
+        for (int i = 0; i < nbin; i++) harray[i] = 0;
         
+        printf("Number of Point: %d\n", data[ch]->last);
+        can1->cd();
+        g = new TGraph(data[ch]->last);
+        for (int i = 0; i< data[ch]->last; i++) g->SetPoint(g->GetN(), i, data[ch]->time[i]%val1);
+        g->Draw("ap");
         
-        //                      Perform energy calibration on each channel
-        for (int i = 0; i < N_detectors; i++) {
-            if (i <= 1) continue; // Use to prevent calibration of channel 0 and 2
-            sprintf(data[i]->path, "%s%s/", path, file);
-            std::cout << "Start:\tFinish\n";
-            std::cout << data[i]->time[0]/pow(10, 6) << " us\t";
-            std::cout << data[i]->time[data[i]->last - 1]/pow(10, 9) << " s\n";
-            diagnostics(data[i], 1);
-            for (int j = 0; j < tBin; j++){
-                sprintf(str, "Partition_%d_Channel_%d", j, data[i]->channel);
-                data[i]->histogram[j] = new TH1D(str, str, tBin, 0, tBin);
-            } // Creates all the histograms...
-            
-            parse_time(data[i], 20, parsetime, singular); // Use false for moving window average...
-            std::cout << "Total slices: " << data[i]->endslice << "\n";
-            data[i]->cslice = 0;
-            for (int j = 0; j < NUM_PEAKS*NUM_COLUMN; j++) data[i]->param[j][0] = -1;
-            for (int j = 0; j < NUM_COLUMN; j++) data[i]->calib[j][0] = -1;
-            std::cout << "Starting at " << data[i]->cslice << " ending at " << data[i]->endslice << "\n";
-            for (int j = data[i]->cslice; j < data[i]->endslice; j++) {
-                peakfinder(data[i], &override, &sigma_value, &area_value, false, lcl, ucl, lal);
-                calibration(data[i]);
-                revise_energy(data[i], tBin, numbin, lower, upper);
-                data[i]->cslice++;
-            }
-            fit_save(data[i], false);
-            //energy(data[i], 0, true); // Set to false for moving window...
-            diagnostics(data[i], 2);
+        // Parse data into individual files...
+        can2->cd();
+        sprintf(data[ch]->path, "%s%s/", path, file);
+        sprintf(data[ch]->name, "%s_Ch_%d_00_Window_Hist", file, ch);
+        for (int j = 0; j < NUM_COLUMN; j++){
+            sprintf(str, "Partition_%d_Channel_%d", j, data[ch]->channel);
+            data[ch]->histogram[j] = new TH1D(str, str, nbin, 0, 1000000000);
+        } // Creates all the histograms...
+        data[ch]->numbin = data[ch]->histogram[0]->GetNbinsX();
+        data[ch]->current = 0;
+        data[ch]->cslice = 0;
+        while (data[ch]->current < data[ch]->last){
+            data[ch]->histogram[data[ch]->cslice]->Fill(data[ch]->time[data[ch]->current]%val1);
+            data[ch]->current++;
+            std::cout << "i: " << data[ch]->current << "\tj: " << data[ch]->cslice << "\r";
+            if (data[ch]->current%1000 == 0) data[ch]->cslice++;
+            if (NUM_COLUMN <= data[ch]->cslice) break;
         }
-        
-        // Save calibrated data with all events events
-        for (int j = 0; j < 4; j++) {
-            sprintf(str, "%s%s%s%d%s", path, file, "_Energy_Calibrated_Channel_", 2*j, ".txt");
-            file_save(data[j], str, 2); // Save all data including uncalibrated points
+        std::cout << "\n";
+        data[ch]->histogram[data[ch]->cslice]->GetXaxis()->SetRangeUser(0, val1);
+        data[ch]->histogram[0]->Draw("hist");
+        for (int i = 1; i < data[ch]->endslice; i++) data[ch]->histogram[i]->Draw("same");
+        hist2array(harray, data[ch]->histogram[data[ch]->cslice]);
+        for (int i = 0; i < nbin; i++) if (10 < harray[i]){
+            area += harray[i];
+            numer += harray[i]*data[ch]->histogram[data[ch]->cslice]->GetBinCenter(i + 1);
+            denom += harray[i];
         }
+        centroid = double(numer/denom);
         
-        // Perform Fit over each partition...
-        for (int i = 0; i < N_detectors; i++) {
-            if (i <= 1) continue; // Use to prevent calibration of channel...
-            //sprintf(data[i]->path, "%s%s/", path, file);
-            sprintf(data[i]->name, "%s_Energy_Domain", file);
-            std::cout << "Reprocessing data in Energy domain\n";
-            std::cout << "Start:\tFinish\n";
-            std::cout << data[i]->time[0]/pow(10, 6) << " us\t";
-            std::cout << data[i]->time[data[i]->last - 1]/pow(10, 9) << " s\n";
-            data[i]->cslice = 0;
-            //data[i]->endslice = 0;
-            for(int j = 0; j < tBin; j++) data[i]->xaxis[j] = 0;
-            for(int j = 0; j < numbin; j++) data[i]->xaxis[j] = lower + (j + 0.5)*(upper - lower)*1.0/numbin;
-            hist_save(data[i], numbin, data[i]->endslice);
-            for (int j = 0; j < tBin; j++) data[i]->histogram[j]->Delete();  //                                            Remove or comment out when doing energy fit comparison...
-                
-            /*/
-            for (int j = 0; j < data[i]->endslice; j++){
-                data[i]->histogram[j]->Delete();
-                sprintf(str, "Partition_%d_Channel_%d", j, data[i]->channel);
-                data[i]->histogram[j] = new TH1D(str, str, numbin, lower, upper);
-                array2hist(data[i], numbin);
-                data[i]->cslice++;
-            } // Creates all the histograms...
-            parse_time(data[i], 0, parsetime, singular, numbin, lower, upper, true);// Use first bool as false for moving window average...
-            std::cout << "Total slices: " << data[i]->endslice << "\n";
-            sigma_value = 1;
-            area_value = 0.005;
-            lcl = 10;
-            ucl = 100;
-            lal = 100;
-            data[i]->cslice = (singular ? 0 : 10);
-            std::cout << "Starting at " << data[i]->cslice << " ending at " << data[i]->endslice << "\n";
-            for (int j = data[i]->cslice; j < data[i]->endslice - (singular ? 0 : 10); j++) {
-                peakfinder(data[i], &sigma_value, &area_value, true, lcl, ucl, lal, 1, true);
-                calibration(data[i]);
-                data[i]->cslice++;
-            }
-            //*/
-            //fit_save(data[i], false);
-        }
-        for (int i = 0; i < N_detectors; i++) delete data[i];
-    }// XIA Full Recoil processing
+        // Gaussian parameter fits : {{fit_number, energy, peak, dpeak, sigma, dsigma, area, darea}_0, ...}
+        data[ch]->param[data[ch]->cslice*NUM_PEAKS][0] = 0;
+        data[ch]->param[data[ch]->cslice*NUM_PEAKS][1] = 0;
+        data[ch]->param[data[ch]->cslice*NUM_PEAKS][2] = centroid;
+        data[ch]->param[data[ch]->cslice*NUM_PEAKS][4] = sigma;
+        data[ch]->param[data[ch]->cslice*NUM_PEAKS][6] = area;
+        singlegaussfit(data[ch], 0.98*centroid, 1.02*centroid);
+    }// XIA Scatter Module
     else if(type ==  5){
         char str[500];
         char *path = tpath;
@@ -5874,18 +5943,12 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
             snprintf(str, sizeof(str), "%s%s/%s_Ch_%d_000_ASCII.txt", path, file, file, data[i]->channel); // Window file name..
             file_save(data[i], str, 0);
         }
-        
-        
-        
-        
-        
-        
     } // Trouble Shooting:              To save XIA to ascii
     else if(type == 10){
         std::cout << "Initial Values:\nPeak\tSigma\tArea\n";
         printf("Running Test:");
         for(int i = 0; i < sig; i++) printf("%d ", i);
-    } // Trouble Shooting:              Empty
+    } // Trouble Shooting:              Test Print
     else if(type == 11){
         /*
          This section will run a fit on the fully energy calibrated file to confirm position of peaks
@@ -6252,8 +6315,8 @@ int process(int type = 0,  float sig = 0, char file[500] = tfile, double randomv
         double area_value = 0.001;// 0.001
         int rebin = int(val1 = 0 ? 1 : TMath::Abs(val1));
         int lal = 1000;
-        int lcl = 10; //40; //20;
-        int ucl = 3000; //8190; //150;
+        int lcl = 3; //40; //20;
+        int ucl = 200; //8190; //150;
         int pspace = 15; //40;//10
         int counter = 0;
         double binstart = 0;
