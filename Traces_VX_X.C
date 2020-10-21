@@ -6,9 +6,9 @@
 //
 //
 
-#define MAX_TO_READ 80000000
+#define MAX_TO_READ 80000
 #define N_detectors 4
-#define N_HIST 30000
+#define N_HIST 10
 
 
 #include <iostream>
@@ -45,9 +45,9 @@ struct info{
     double xaxis[4096];
 };
 
-//*/ TEST FILES: Produce files with < 32768 bins
+/*/ TEST FILES: Produce files with < 32768 bins
 char tfile[500] = "111112g_Be7_12p1A_XIA_p108d";
-char tfile00[500] = "111112-d_b14-p228b";
+char tfile00[500] = "111112-d_HE_Traces_b14-p198d";
 char tfile01[500] = "111112-d_b14-p228c";
 char tfile02[500] = "111112-d_b14-p228e";
 char tfile03[500] = "111112-d_b14-p229a";
@@ -58,6 +58,31 @@ char fpath[500] = "/Users/ponce10/Root_Folder/Data/233U_to_229Th/Low_Activity_Fo
 //char tpath[500] = "/Users/ponce10/Root_Folder/Data/Code_Testing/Traces/";
 char tpath[500] = "/Applications/Data-Processed/Livermore/Test/";
 char text[500] = ".bin";
+/*/
+char tfile[500] = "111112-d_b14-p225a";
+char tfile00[500] = "111112-d_b14-p225a";
+char tfile01[500] = "111112-d_b14-p226d";
+char tfile02[500] = "111112-d_b14-p226e";
+char tfile03[500] = "111112-d_HE_Traces_b14-p198d";
+char tfile04[500] = "Run_p113e";
+char tfile05[500] = "Run_p114e";
+char tfile06[500] = "Run_p115b";
+char tfile07[500] = "Run_p115e";
+char tfile08[500] = "Run_p116b";
+char tfile09[500] = "Run_p116e";
+char tfile10[500] = "Run_p119c";
+char tfile11[500] = "Run_p120b";
+char tfile12[500] = "Run_p120d";
+char tfile13[500] = "Run_p122c";
+char tfile14[500] = "Run_p123d";
+char tfile15[500] = "Run_p125b";
+char tfile16[500] = "Run_p125d";
+char tfile17[500] = "Run_p126e";
+char tpath[500] = "/Applications/Data-Processed/Livermore/Phase_II/XIA/"; //XIA Files
+char text[500] = ".bin";
+char *tfolder[20] = {tfile00, tfile01, tfile02, tfile03, tfile04, tfile05,
+                     tfile06, tfile07, tfile08, tfile09, tfile10, tfile11,
+                     tfile12, tfile13, tfile14, tfile15, tfile16, tfile17};
 
 // End File names and extentions
 info *outgamma[4];
@@ -226,7 +251,6 @@ int xiaload(char* filename, info *detector[N_detectors]){
                             for (int i = 3; i < 4099; i++) det->trace[det->current][i - 3] = data[2*i] + 256*data[2*i + 1];
                             det->current++;
                             det->last++;
-                            
                         }
                     }
                     if (detector[i]->current == N_HIST) exit++;
@@ -253,9 +277,8 @@ int tsave(info *det){
     
     ofstream file;
     //End
-    
-    
-    snprintf(str, sizeof(str), "%s%s_Traces_Ch_%d.txt", fpath, det->name, det->channel);
+
+    snprintf(str, sizeof(str), "%s%s_Traces_Ch_%d.txt", tpath, det->name, det->channel);
     file.open(str);
     if(file.fail()) printf("Failed to open file \n%s\n", str);
     else {
@@ -438,7 +461,7 @@ int calculate(char* filename, info *detector[N_detectors]){
     // Loop through the file and copy content to storage
     else {
         std::cout << "Loading data:\n" << str;
-        sprintf(str, "%s%s%s", fpath, filename, "_Area.txt");
+        sprintf(str, "%s%s%s", tpath, filename, "_Area.txt");
         outfile.open(str);
         outfile << "STJ_0-Area\tSTJ_0-Volt\tSTJ_2-Area\tSTJ_2-Volt\t";
         outfile << "STJ_4-Area\tSTJ_4-Volt\tSTJ_6-Area\tSTJ_6-Volt\n";
@@ -508,8 +531,7 @@ int process(int type = 0,  char file[500] = tfile, int randomvalue = 0, char pat
             sprintf(data[i]->path, "%s", path);
             sprintf(data[i]->name, "%s", file);
             sprintf(data[i]->ext, "%s", text);
-            outgamma[i] = data[i];
-            
+            //outgamma[i] = data[i];
             char str[500];
             for (int j = 0 ; j < N_HIST; j++){
                 data[i]->graph[j] = new TGraph[4096];
@@ -517,28 +539,27 @@ int process(int type = 0,  char file[500] = tfile, int randomvalue = 0, char pat
                 data[i]->histogram[j] = new TH1F(str, str, 4096, 0, 4096);
             }
         }
-        xiaload(data[0]->filename, data);
-        
         float hold = 0;
         int length = 16;
         int gap = 2;
+        xiaload(data[0]->filename, data);
+        
         for (int i = 0; i < N_detectors; i++){
             data[i]->last = 2;
             if (0 <= randomvalue) for (int j = 0; j < 4096; j++) {
                 data[i]->xaxis[j] = 1*j;
-                data[i]->trace[0][j] = data[i]->trace[randomvalue][j];
+                /*data[i]->trace[0][j] = data[i]->trace[randomvalue][j];
                 data[i]->trace[1][j] = 0;
                 if (length <= j && j < 4096 - length - gap) {
                     hold = 0;
                     for (int k = j - length; k < j; k++) hold -= data[i]->trace[randomvalue][k]*1.0/length;
                     for (int k = j + gap; k < j + length + gap; k++) hold += data[i]->trace[randomvalue][k]*1.0/length;
                     data[i]->trace[1][j] = hold;
-                }
+                }*/
             }
             tsave(data[i]);
         }
         for (int i = 0; i < N_detectors; i++) data[i]->current = 0;
-        
     }
     else if(type == 1){
         info *data[N_detectors];
